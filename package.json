@@ -1,0 +1,37 @@
+{
+  "name": "gl-odango-kit",
+  "version": "0.0.1",
+  "description": "",
+  "main": "./src/main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "browser-sync": "^2.9.6",
+    "browserify": "^11.2.0",
+    "browserify-shader": "^0.1.0",
+    "budo": "^5.1.0",
+    "errorify": "^0.3.1",
+    "garnish": "^2.3.0",
+    "gulp": "^3.9.0",
+    "gulp-if": "^1.2.5",
+    "gulp-livereload": "^3.8.1",
+    "minimist": "^1.2.0",
+    "raf": "^3.1.0",
+    "vinyl-source-stream": "^1.1.0",
+    "watchify": "^3.4.0"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "watchify-server": "^1.0.0"
+  },
+  "bin": {
+    "abcanvas": "bin.js"
+  },
+  "homepage": "https://github.com/kenjiSpecial/gl-odango-kit",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kenjiSpecial/gl-odango-kit.git"
+  }
+}
