@@ -1,4 +1,370 @@
-(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({"/Users/kenji-special/project/2015/09/gl-odango-kit/src/components/buffer.js":[function(require,module,exports){
+(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+var BallFragmentShaderFunc = require('./shaders/ball/fragment.glsl');
+var BallVertexShaderFunc   = require('./shaders/ball/vertex.glsl');
+var IdentityVertexShaderfunc = require('./shaders/identity-vertex.glsl');
+var ThresholdFramgentShaderFunc = require('./shaders/threshold/fragment.glsl');
+var BlurShaderFunc = require('./shaders/blur/fragment.glsl');
+var TextFragmentFunc = require('./shaders/text/fragment.glsl');
+var TextVertexFunc   = require('./shaders/text/vertex.glsl');
+
+
+var ballFragment      = BallFragmentShaderFunc();
+var ballVertex        = BallVertexShaderFunc();
+var thresholdFragment = ThresholdFramgentShaderFunc();
+var identityVertex    = IdentityVertexShaderfunc();
+var blurFragment      = BlurShaderFunc();
+var textureFragment   = TextFragmentFunc();
+var textureVertex     = TextVertexFunc();
+
+var GLOdango = require('../src/main');
+
+var quad2 = GLOdango.utils.QUAD2;
+
+
+var canvas = document.createElement('canvas');
+canvas.style.display = "block";
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+canvas.style.width = canvas.width + 'px';
+canvas.style.height = canvas.height + 'px';
+
+document.body.appendChild(canvas);
+
+var textCanvas = document.createElement('canvas');
+textCanvas.width = window.innerWidth;
+textCanvas.height = window.innerHeight;
+
+var textCtx = textCanvas.getContext('2d');
+textCtx.font = "30px Arial";
+textCtx.fillText("Hello World",10,50);
+textCtx.fillRect(100, 100, 100, 100);
+
+
+
+// -----------------------------
+
+var gl, programs, buffers, fbo, textures;
+
+gl = GLOdango.utils.initGL(canvas);
+
+if (gl == null) {
+    alert('Could not initialize WebGL!');
+}
+
+gl.enable(gl.BLEND);
+gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+gl.disable(gl.DEPTH_TEST);
+gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+
+var canvasTexture = new GLOdango.Texture(gl);
+canvasTexture.set(textCanvas);
+
+
+var ballsProgram = new GLOdango.Program( gl, ballVertex, ballFragment );
+ballsProgram.attrib('ball');
+var threshold    = new GLOdango.Program( gl, identityVertex, thresholdFragment );
+threshold.attrib('position');
+var blur         = new GLOdango.Program( gl, identityVertex, blurFragment );
+blur.attrib('position');
+var texturePro   = new GLOdango.Program( gl, textureVertex, textureFragment );
+texturePro.attrib('aPosition');
+
+
+programs = {
+    balls     : ballsProgram,
+    threshold : threshold,
+    blur      : blur,
+    texture   : texturePro
+};
+
+buffers = {
+    balls : new GLOdango.Buffer(gl),
+    quad  : new GLOdango.Buffer(gl, gl.ARRAY_BUFFER)
+};
+
+buffers.quad.update( quad2, gl.STATIC_DRAW );
+
+
+fbo = gl.createFramebuffer();
+textures = {
+    front : createTexture(),
+    back  : createTexture()
+};
+
+var scaleX, scaleY;
+
+function createTexture(){
+    var tex = gl.createTexture();
+    scaleX = GLOdango.utils.highest2(gl.canvas.width);
+    scaleY = GLOdango.utils.highest2(gl.canvas.height);
+
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, scaleX, scaleY, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+
+    return tex;
+}
+
+function swap(){
+    var temp = textures.front;
+    textures.front = textures.back;
+    textures.back = temp;
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.bindTexture(gl.TEXTURE_2D, textures.back);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, textures.back, 0);
+    gl.clearColor(0, 0, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.bindTexture(gl.TEXTURE_2D, textures.front);
+}
+
+function render(){
+    var pos = new Float32Array(4);
+    pos[0] = 0.0;
+    pos[1] = 0.0;
+    pos[2] = 0.0;
+    pos[3] = 100 / (window.innerHeight/2);
+
+    buffers.balls.update(pos);
+
+    canvasTexture.bind(0);
+
+    swap();
+
+    programs.texture.use()
+        .uniformi('image', 0)
+        .attrib('aPosition', buffers.quad, 2)
+        .draw(gl.TRIANGLE_STRIP, 4);
+
+
+    swap();
+
+    programs.balls.use()
+        .attrib('ball', buffers.balls, 2)
+        .uniform('base', 0, true)
+        .uniform('size', 100)
+        .draw(gl.POINTS, pos.length/2);
+    swap();
+
+
+    programs.blur.use()
+        .attrib('position', buffers.quad, 2)
+        .uniform('base', 0, true)
+        .uniform('scale', [scaleX, scaleY])
+        .uniform('dir', [0.0, 1.0])
+        .draw(gl.TRIANGLE_STRIP, 4);
+
+    swap();
+
+    programs.blur
+        .uniform('dir', [1.0, 0.0])
+        .draw(gl.TRIANGLE_STRIP, 4);
+
+    swap();
+
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    programs.threshold.use()
+        .attrib('position', buffers.quad, 2)
+        .uniform('base', 0, true)
+        .uniform('scale', [scaleX, scaleY])
+        .uniform('copy', false, true)
+        .uniform('threshold', 0.4)
+        .draw(gl.TRIANGLE_STRIP, 4);
+
+
+    requestAnimationFrame(render);
+}
+
+//requestAnimationFrame(render);
+render();
+
+},{"../src/main":13,"./shaders/ball/fragment.glsl":2,"./shaders/ball/vertex.glsl":3,"./shaders/blur/fragment.glsl":4,"./shaders/identity-vertex.glsl":5,"./shaders/text/fragment.glsl":6,"./shaders/text/vertex.glsl":7,"./shaders/threshold/fragment.glsl":8}],2:[function(require,module,exports){
+module.exports = function parse(params){
+      var template = " \n" +
+"precision mediump float; \n" +
+" \n" +
+"uniform sampler2D base; \n" +
+" \n" +
+"void main() { \n" +
+"    float dis = distance(vec2(0.0, 0.0), gl_PointCoord.xy - 0.5); \n" +
+" \n" +
+" \n" +
+"    if ( dis < 0.5) { \n" +
+"        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0 ); \n" +
+"    }else { \n" +
+"        gl_FragColor = vec4(1.0, 0.0, 1.0, 0.0); \n" +
+"    } \n" +
+"} \n" +
+" \n" 
+      params = params || {}
+      for(var key in params) {
+        var matcher = new RegExp("{{"+key+"}}","g")
+        template = template.replace(matcher, params[key])
+      }
+      return template
+    };
+
+},{}],3:[function(require,module,exports){
+module.exports = function parse(params){
+      var template = "#ifdef GL_ES \n" +
+"precision mediump float; \n" +
+"#endif \n" +
+" \n" +
+"attribute vec2 ball; \n" +
+"uniform float size; \n" +
+"uniform sampler2D base; \n" +
+" \n" +
+" \n" +
+" \n" +
+"void main() { \n" +
+"    gl_Position = vec4(ball, 0.0, 1.0); \n" +
+"    gl_PointSize = size; \n" +
+"} \n" +
+" \n" 
+      params = params || {}
+      for(var key in params) {
+        var matcher = new RegExp("{{"+key+"}}","g")
+        template = template.replace(matcher, params[key])
+      }
+      return template
+    };
+
+},{}],4:[function(require,module,exports){
+module.exports = function parse(params){
+      var template = "#ifdef GL_ES \n" +
+"precision mediump float; \n" +
+"#endif \n" +
+" \n" +
+"uniform sampler2D base; \n" +
+"uniform vec2 scale; \n" +
+"uniform vec2 dir; \n" +
+" \n" +
+"void main() { \n" +
+"    vec2 p = gl_FragCoord.xy / scale; \n" +
+"    gl_FragColor = \n" +
+"        texture2D(base, p + dir * vec2(-9.0, -9.0) / scale) * 0.02433 + \n" +
+"        texture2D(base, p + dir * vec2(-8.0, -8.0) / scale) * 0.03081 + \n" +
+"        texture2D(base, p + dir * vec2(-7.0, -7.0) / scale) * 0.03795 + \n" +
+"        texture2D(base, p + dir * vec2(-6.0, -6.0) / scale) * 0.04546 + \n" +
+"        texture2D(base, p + dir * vec2(-5.0, -5.0) / scale) * 0.05297 + \n" +
+"        texture2D(base, p + dir * vec2(-4.0, -4.0) / scale) * 0.06002 + \n" +
+"        texture2D(base, p + dir * vec2(-3.0, -3.0) / scale) * 0.06615 + \n" +
+"        texture2D(base, p + dir * vec2(-2.0, -2.0) / scale) * 0.07090 + \n" +
+"        texture2D(base, p + dir * vec2(-1.0, -1.0) / scale) * 0.07392 + \n" +
+"        texture2D(base, p + dir * vec2( 0.0,  0.0) / scale) * 0.07495 + \n" +
+"        texture2D(base, p + dir * vec2( 1.0,  1.0) / scale) * 0.07392 + \n" +
+"        texture2D(base, p + dir * vec2( 2.0,  2.0) / scale) * 0.07090 + \n" +
+"        texture2D(base, p + dir * vec2( 3.0,  3.0) / scale) * 0.06615 + \n" +
+"        texture2D(base, p + dir * vec2( 4.0,  4.0) / scale) * 0.06002 + \n" +
+"        texture2D(base, p + dir * vec2( 5.0,  5.0) / scale) * 0.05297 + \n" +
+"        texture2D(base, p + dir * vec2( 6.0,  6.0) / scale) * 0.04546 + \n" +
+"        texture2D(base, p + dir * vec2( 7.0,  7.0) / scale) * 0.03795 + \n" +
+"        texture2D(base, p + dir * vec2( 8.0,  8.0) / scale) * 0.03081 + \n" +
+"        texture2D(base, p + dir * vec2( 9.0,  9.0) / scale) * 0.02433; \n" +
+"} \n" +
+" \n" 
+      params = params || {}
+      for(var key in params) {
+        var matcher = new RegExp("{{"+key+"}}","g")
+        template = template.replace(matcher, params[key])
+      }
+      return template
+    };
+
+},{}],5:[function(require,module,exports){
+module.exports = function parse(params){
+      var template = "#ifdef GL_ES \n" +
+"precision mediump float; \n" +
+"#endif \n" +
+" \n" +
+"attribute vec2 position; \n" +
+" \n" +
+"void main() { \n" +
+"    gl_Position = vec4(position, 0, 1.0); \n" +
+"} \n" 
+      params = params || {}
+      for(var key in params) {
+        var matcher = new RegExp("{{"+key+"}}","g")
+        template = template.replace(matcher, params[key])
+      }
+      return template
+    };
+
+},{}],6:[function(require,module,exports){
+module.exports = function parse(params){
+      var template = "precision mediump float; \n" +
+" \n" +
+"varying vec2 coord; \n" +
+" \n" +
+"uniform sampler2D image; \n" +
+" \n" +
+"void main(void) { \n" +
+"    gl_FragColor = texture2D(image, coord); \n" +
+"} \n" 
+      params = params || {}
+      for(var key in params) {
+        var matcher = new RegExp("{{"+key+"}}","g")
+        template = template.replace(matcher, params[key])
+      }
+      return template
+    };
+
+},{}],7:[function(require,module,exports){
+module.exports = function parse(params){
+      var template = "precision mediump float; \n" +
+" \n" +
+"attribute vec2 aPosition; \n" +
+"varying vec2 coord; \n" +
+" \n" +
+"void main() { \n" +
+"   coord = (aPosition* vec2(1, -1) + 1.0) / 2.0; \n" +
+"   gl_Position = vec4(aPosition, 0, 1); \n" +
+"} \n" 
+      params = params || {}
+      for(var key in params) {
+        var matcher = new RegExp("{{"+key+"}}","g")
+        template = template.replace(matcher, params[key])
+      }
+      return template
+    };
+
+},{}],8:[function(require,module,exports){
+module.exports = function parse(params){
+      var template = "#ifdef GL_ES \n" +
+"precision mediump float; \n" +
+"#endif \n" +
+" \n" +
+"uniform sampler2D base; \n" +
+"uniform vec2 scale; \n" +
+"uniform float threshold; \n" +
+"uniform int copy; \n" +
+" \n" +
+"void main() { \n" +
+"    vec4 value = texture2D(base, gl_FragCoord.xy / scale); \n" +
+"    if (copy != 0) { \n" +
+"        gl_FragColor = value; \n" +
+"    } else if (value.r > 0.5) { \n" +
+"        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0); \n" +
+"    } else { \n" +
+"        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); \n" +
+"    } \n" +
+"} \n" +
+" \n" 
+      params = params || {}
+      for(var key in params) {
+        var matcher = new RegExp("{{"+key+"}}","g")
+        template = template.replace(matcher, params[key])
+      }
+      return template
+    };
+
+},{}],9:[function(require,module,exports){
 function Buffer( gl, target ){
     this.gl = gl;
     this.buffer = gl.createBuffer();
@@ -35,7 +401,7 @@ Buffer.prototype.update = function(data, usage){
 
 module.exports = Buffer;
 
-},{}],"/Users/kenji-special/project/2015/09/gl-odango-kit/src/components/program.js":[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 function Program( gl, vertex, fragment ){
     this.gl = gl;
     this.program = gl.createProgram();
@@ -115,6 +481,7 @@ Program.prototype.uniformi = function(name, value) {
 
 Program.prototype.draw = function(mode, count, type){
     var gl = this.gl;
+
     if (type == null) {
         gl.drawArrays(mode, 0, count);
     } else {
@@ -134,7 +501,7 @@ var isArray = function(object) {
 
 module.exports = Program;
 
-},{}],"/Users/kenji-special/project/2015/09/gl-odango-kit/src/components/texture.js":[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 function Texture(gl, _format, _wrap, _filter){
     this.gl = gl;
     this.texture = gl.createTexture();
@@ -181,7 +548,7 @@ Texture.prototype.set = function( source, width, height ) {
 
 module.exports = Texture;
 
-},{}],"/Users/kenji-special/project/2015/09/gl-odango-kit/src/components/utils.js":[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 /**
  *
  * @param {Canvas} canvas
@@ -205,122 +572,24 @@ function initGL(canvas){
 
 var quad2 = new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]);
 
-module.exports = {
-    initGL : initGL,
-    QUAD2  : quad2
+
+/**
+ *
+ * @param  {number} x A dimension
+ * @return {number} The smallest power of 2 >= x
+ */
+
+function highest2(x){
+    return Math.pow(2, Math.ceil(Math.log(x) / Math.LN2));
 };
 
-},{}],"/Users/kenji-special/project/2015/09/gl-odango-kit/src/examples/shaders/shader-texture00/fragment.glsl":[function(require,module,exports){
-module.exports = function parse(params){
-      var template = "precision mediump float; \n" +
-" \n" +
-"varying vec2 coord; \n" +
-" \n" +
-"uniform sampler2D image; \n" +
-"uniform vec3 tint; \n" +
-" \n" +
-"void main(void) { \n" +
-"    gl_FragColor = texture2D(image, coord) + vec4(tint, 0.); \n" +
-"} \n" 
-      params = params || {}
-      for(var key in params) {
-        var matcher = new RegExp("{{"+key+"}}","g")
-        template = template.replace(matcher, params[key])
-      }
-      return template
-    };
+module.exports = {
+    initGL   : initGL,
+    QUAD2    : quad2,
+    highest2 : highest2
+};
 
-},{}],"/Users/kenji-special/project/2015/09/gl-odango-kit/src/examples/shaders/shader-texture00/vertex.glsl":[function(require,module,exports){
-module.exports = function parse(params){
-      var template = "precision mediump float; \n" +
-" \n" +
-"attribute vec2 aPosition; \n" +
-"varying vec2 coord; \n" +
-" \n" +
-"void main() { \n" +
-"   coord = (aPosition* vec2(1, -1) + 1.0) / 2.0; \n" +
-"   gl_Position = vec4(aPosition, 0, 1); \n" +
-"} \n" 
-      params = params || {}
-      for(var key in params) {
-        var matcher = new RegExp("{{"+key+"}}","g")
-        template = template.replace(matcher, params[key])
-      }
-      return template
-    };
-
-},{}],"/Users/kenji-special/project/2015/09/gl-odango-kit/src/examples/texture-example00.js":[function(require,module,exports){
-
-
-var fs    = require('./shaders/shader-texture00/fragment.glsl');
-var vs    = require('./shaders/shader-texture00/vertex.glsl');
-var quad2 = require('../components/utils').QUAD2;
-
-if (typeof vs === "function"){
-    vs = vs();
-}
-if (typeof fs === "function"){
-    fs = fs();
-}
-
-var KSOdango = require('../main');
-
-var canvas = document.createElement('canvas');
-canvas.style.display = "block";
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-canvas.style.width = canvas.width + 'px';
-canvas.style.height = canvas.height + 'px';
-
-
-document.body.appendChild(canvas);
-var gl, quad2Buffer, texture, shaderProgram;
-
-var tick = 0;
-
-function onloaded(){
-    gl = KSOdango.utils.initGL(canvas);
-    quad2Buffer = new KSOdango.Buffer(gl, gl.ARRAY_BUFFER);
-    quad2Buffer.update( quad2, gl.STATIC_DRAW );
-
-    texture = new KSOdango.Texture(gl);
-    texture.set(image);
-
-    shaderProgram = new KSOdango.Program( gl, vs, fs);
-    shaderProgram.attrib('aPosition');
-
-
-    requestAnimationFrame(loop);
-}
-
-
-
-function loop(){
-    texture.bind(0);
-
-    var tint = [Math.sin(tick / 13), Math.cos(tick / 19), 0];
-    shaderProgram.use()
-        .uniform('tint', tint)
-        .uniformi('image', 0)
-        .attrib('aPosition', quad2Buffer, 2)
-        .draw(gl.TRIANGLE_STRIP, quad2.length/2);
-
-
-    tick++;
-    requestAnimationFrame(loop);
-}
-
-
-
-
-
-
-
-var image = new Image();
-image.src = './images/image00.jpg';
-
-image.onload = onloaded;
-},{"../components/utils":"/Users/kenji-special/project/2015/09/gl-odango-kit/src/components/utils.js","../main":"/Users/kenji-special/project/2015/09/gl-odango-kit/src/main.js","./shaders/shader-texture00/fragment.glsl":"/Users/kenji-special/project/2015/09/gl-odango-kit/src/examples/shaders/shader-texture00/fragment.glsl","./shaders/shader-texture00/vertex.glsl":"/Users/kenji-special/project/2015/09/gl-odango-kit/src/examples/shaders/shader-texture00/vertex.glsl"}],"/Users/kenji-special/project/2015/09/gl-odango-kit/src/main.js":[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 module.exports = {
     utils   : require('./components/utils'),
     Program : require('./components/program'),
@@ -328,4 +597,4 @@ module.exports = {
     Texture : require('./components/texture')
 };
 
-},{"./components/buffer":"/Users/kenji-special/project/2015/09/gl-odango-kit/src/components/buffer.js","./components/program":"/Users/kenji-special/project/2015/09/gl-odango-kit/src/components/program.js","./components/texture":"/Users/kenji-special/project/2015/09/gl-odango-kit/src/components/texture.js","./components/utils":"/Users/kenji-special/project/2015/09/gl-odango-kit/src/components/utils.js"}]},{},["/Users/kenji-special/project/2015/09/gl-odango-kit/src/examples/texture-example00.js"]);
+},{"./components/buffer":9,"./components/program":10,"./components/texture":11,"./components/utils":12}]},{},[1]);

@@ -2,6 +2,8 @@ var fs    = require('./shaders/shader00/fragment.glsl');
 var vs    = require('./shaders/shader00/vertex.glsl');
 var quad2 = require('../components/utils').QUAD2;
 
+
+
 if (typeof vs === "function"){
     vs = vs();
 }

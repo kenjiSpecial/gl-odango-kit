@@ -7,7 +7,12 @@ var gulpif = require('gulp-if');
 var browserSync = require('browser-sync');
 var watch;
 
-var entry = 'src/examples/texture-example00.js';
+var entry = './example-liquid/example.js';
+//var entry = './examples/texture-example00.js';
+
+//var entry = './example-demo/example'
+//entry = './src/main.js';
+
 
 gulp.task('browserify-nowatch', function(){
     watch = false;
@@ -20,22 +25,19 @@ gulp.task('browserify-watch', function(){
 });
 
 function browserifyShare(){
-    var b = browserify({
-        cache: {},
-        packageCache: {},
-        fullPaths: true
-    });
+    console.log(entry);
+    var b = browserify(entry);
+    //b.add(entry);
     b.transform('browserify-shader');
+    //console.log(b);
 
     if(watch) {
-        // if watch is enable, wrap this bundle inside watchify
         b = watchify(b);
         b.on('update', function(){
             bundleShare(b);
         });
     }
 
-    b.add(entry);
     bundleShare(b);
 }
 

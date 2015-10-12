@@ -77,6 +77,7 @@ Program.prototype.uniformi = function(name, value) {
 
 Program.prototype.draw = function(mode, count, type){
     var gl = this.gl;
+
     if (type == null) {
         gl.drawArrays(mode, 0, count);
     } else {

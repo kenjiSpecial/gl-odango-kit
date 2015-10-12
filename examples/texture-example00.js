@@ -1,8 +1,5 @@
-
-
 var fs    = require('./shaders/shader-texture00/fragment.glsl');
 var vs    = require('./shaders/shader-texture00/vertex.glsl');
-var quad2 = require('../components/utils').QUAD2;
 
 if (typeof vs === "function"){
     vs = vs();
@@ -11,7 +8,8 @@ if (typeof fs === "function"){
     fs = fs();
 }
 
-var KSOdango = require('../main');
+var GLOdango = require('../src/main');
+var quad2 = GLOdango.utils.QUAD2;
 
 var canvas = document.createElement('canvas');
 canvas.style.display = "block";
@@ -20,6 +18,12 @@ canvas.height = window.innerHeight;
 canvas.style.width = canvas.width + 'px';
 canvas.style.height = canvas.height + 'px';
 
+var textCanvas = document.createElement('canvas');
+textCanvas.width = window.innerWidth;
+textCanvas.height = window.innerHeight;
+var textCtx = textCanvas.getContext('2d');
+
+textCtx.fillRect( 100, 100, 100, 100);
 
 document.body.appendChild(canvas);
 var gl, quad2Buffer, texture, shaderProgram;
@@ -27,14 +31,14 @@ var gl, quad2Buffer, texture, shaderProgram;
 var tick = 0;
 
 function onloaded(){
-    gl = KSOdango.utils.initGL(canvas);
-    quad2Buffer = new KSOdango.Buffer(gl, gl.ARRAY_BUFFER);
+    gl = GLOdango.utils.initGL(canvas);
+    quad2Buffer = new GLOdango.Buffer(gl, gl.ARRAY_BUFFER);
     quad2Buffer.update( quad2, gl.STATIC_DRAW );
 
-    texture = new KSOdango.Texture(gl);
-    texture.set(image);
+    texture = new GLOdango.Texture(gl);
+    texture.set(textCanvas);
 
-    shaderProgram = new KSOdango.Program( gl, vs, fs);
+    shaderProgram = new GLOdango.Program( gl, vs, fs);
     shaderProgram.attrib('aPosition');
 
 
@@ -57,12 +61,6 @@ function loop(){
     tick++;
     requestAnimationFrame(loop);
 }
-
-
-
-
-
-
 
 var image = new Image();
 image.src = './images/image00.jpg';

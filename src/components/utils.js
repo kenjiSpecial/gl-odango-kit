@@ -21,7 +21,19 @@ function initGL(canvas){
 
 var quad2 = new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]);
 
+
+/**
+ *
+ * @param  {number} x A dimension
+ * @return {number} The smallest power of 2 >= x
+ */
+
+function highest2(x){
+    return Math.pow(2, Math.ceil(Math.log(x) / Math.LN2));
+};
+
 module.exports = {
-    initGL : initGL,
-    QUAD2  : quad2
+    initGL   : initGL,
+    QUAD2    : quad2,
+    highest2 : highest2
 };
