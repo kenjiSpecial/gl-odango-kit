@@ -27,7 +27,7 @@
     "watchify-server": "^1.0.0"
   },
   "bin": {
-    "abcanvas": "bin.js"
+    "glOdngoKit": "bin.js"
   },
   "homepage": "https://github.com/kenjiSpecial/gl-odango-kit",
   "repository": {
